@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/frontend/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customers</title>
+    <style>
+        body {
+            background-color: #19caa7;
+        }
+        .navbar {
+            margin-bottom: 20px;
+        }
+        .card {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .modal-header {
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .modal-header-delete {
+            background-color: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="index.html">Library</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="books.html">Books</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="loans.html">Loans</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="customers.html">Customers</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="overdue_loans.html">Overdue Loans</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container text-center mt-5">
+        <h1>Customers Page</h1>
+        <input type="text" id="searchBar" class="form-control mt-3" placeholder="Search by customer name" oninput="searchCustomers()">
+        <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addCustomerModal">Add Customer</button>
+        <button class="btn btn-danger mt-3" data-bs-toggle="modal" data-bs-target="#deleteCustomerModal">Delete Customer</button>
+        <div id="customersList" class="mt-4"></div>
+    </div>
+
+    <!-- Add Customer Modal -->
+    <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addCustomerModalLabel">Add Customer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addCustomerForm">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="city" class="form-label">City</label>
+                            <input type="text" class="form-control" id="city" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="age" class="form-label">Age</label>
+                            <input type="number" class="form-control" id="age" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone</label>
+                            <input type="text" class="form-control" id="phone" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Customer</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Customer Modal -->
+    <div class="modal fade" id="deleteCustomerModal" tabindex="-1" aria-labelledby="deleteCustomerModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header modal-header-delete">
+                    <h5 class="modal-title" id="deleteCustomerModalLabel">Delete Customer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="deleteSearchBar" class="form-control mb-3" placeholder="Search by customer name" oninput="searchDeleteCustomers()">
+                    <form id="deleteCustomerForm">
+                        <div class="mb-3">
+                            <label for="deleteCustomerSelect" class="form-label">Select Customer to Delete</label>
+                            <select class="form-control" id="deleteCustomerSelect" required>
+                                <!-- Options will be populated dynamically -->
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-danger">Delete Customer</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SERVER_URL = "http://127.0.0.1:5000";
+        let customers = [];
+        let deleteCustomers = [];
+
+        document.addEventListener('DOMContentLoaded', function () {
+            fetchCustomers();
+
+            document.getElementById('addCustomerForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                addCustomer();
+            });
+
+            document.getElementById('deleteCustomerForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                deleteCustomer();
+            });
+
+            $('#deleteCustomerModal').on('show.bs.modal', function () {
+                populateDeleteCustomerSelect();
+            });
+        });
+
+        function fetchCustomers() {
+            axios.get(`${SERVER_URL}/customers`)
+                .then(response => {
+                    customers = response.data;
+                    deleteCustomers = response.data;
+                    displayCustomers(customers);
+                })
+                .catch(error => console.error('Error fetching customers:', error));
+        }
+
+        function displayCustomers(customers) {
+            const customersList = document.getElementById('customersList');
+            customersList.innerHTML = '';
+            customers.forEach(customer => {
+                const customerItem = document.createElement('div');
+                customerItem.className = 'card mb-3';
+                customerItem.innerHTML = `
+                    <div class="card-body">
+                        <h5 class="card-title">${customer.name}</h5>
+                        <p class="card-text">City: ${customer.city}</p>
+                        <p class="card-text">Age: ${customer.age}</p>
+                        <p class="card-text">Phone: ${customer.phone}</p>
+                        <p class="card-text">Active: ${customer.active}</p>
+                    </div>
+                `;
+                customersList.appendChild(customerItem);
+            });
+        }
+
+        function searchCustomers() {
+            const query = document.getElementById('searchBar').value.toLowerCase();
+            const filteredCustomers = customers.filter(customer => customer.name.toLowerCase().includes(query));
+            displayCustomers(filteredCustomers);
+        }
+
+        function addCustomer() {
+            const name = document.getElementById('name').value;
+            const city = document.getElementById('city').value;
+            const age = document.getElementById('age').value;
+            const phone = document.getElementById('phone').value;
+
+            axios.post(`${SERVER_URL}/customers`, {
+                name: name,
+                city: city,
+                age: age,
+                phone: phone
+            })
+                .then(response => {
+                    fetchCustomers();
+                    document.getElementById('addCustomerForm').reset();
+                    const addCustomerModal = new bootstrap.Modal(document.getElementById('addCustomerModal'));
+                    addCustomerModal.hide();
+                })
+                .catch(error => console.error('Error adding customer:', error));
+        }
+
+        function populateDeleteCustomerSelect() {
+            const deleteCustomerSelect = document.getElementById('deleteCustomerSelect');
+            deleteCustomerSelect.innerHTML = '';
+            deleteCustomers.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.id;
+                option.textContent = customer.name;
+                deleteCustomerSelect.appendChild(option);
+            });
+        }
+
+        function searchDeleteCustomers() {
+            const query = document.getElementById('deleteSearchBar').value.toLowerCase();
+            const filteredCustomers = customers.filter(customer => customer.name.toLowerCase().includes(query));
+            deleteCustomers = filteredCustomers;
+            populateDeleteCustomerSelect();
+        }
+
+        function deleteCustomer() {
+            const customer_id = document.getElementById('deleteCustomerSelect').value;
+
+            axios.delete(`${SERVER_URL}/customers/${customer_id}`)
+                .then(response => {
+                    fetchCustomers();
+                    const deleteCustomerModal = new bootstrap.Modal(document.getElementById('deleteCustomerModal'));
+                    deleteCustomerModal.hide();
+                })
+                .catch(error => console.error('Error deleting customer:', error));
+        }
+    </script>
+</body>
+
+</html>
