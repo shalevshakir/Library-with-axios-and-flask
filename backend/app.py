@@ -2,9 +2,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from datetime import date, timedelta
-import logging
-from logger import log_info, log_warning, log_error
 
+
+git
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///library.db'
@@ -13,9 +13,6 @@ app.config['DEBUG']= False
 db = SQLAlchemy(app)
 CORS(app)
 
-app.logger.info("Flask application is starting")
-app.logger.warning("This is a warning")
-app.logger.error("An error occurred while processing")
 
 
 class Book(db.Model):
@@ -265,5 +262,4 @@ with app.app_context():
     defaultdata()
 
 if __name__ == '__main__':
-    log_info("Flask application is starting")
     app.run(debug=False ,use_reloader=False)
