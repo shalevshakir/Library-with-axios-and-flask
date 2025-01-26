@@ -37,29 +37,23 @@ This is a Library Management System built with Flask for the backend and HTML, C
 
 # API Endpoints
 
-   ## Books
+## Books
 
-   GET /books: Retrieve all books
+- **GET /books**: Retrieve all books that are not deleted
+- **GET /books/available**: Retrieve all available books that are not deleted
+- **POST /books**: Add a new book
+- **DELETE /books/{book_id}**: Mark a book as deleted
 
-   POST /books: Add a new book
+## Customers
 
-   DELETE /books/{book_id}: Mark a book as deleted
+- **GET /customers**: Retrieve all customers that are not deleted
+- **GET /customers/active**: Retrieve all active customers that are not deleted
+- **POST /customers**: Add a new customer
+- **DELETE /customers/{customer_id}**: Mark a customer as deleted
 
+## Loans
 
-   ## Customers
-
-   GET /customers: Retrieve all customers
-
-   POST /customers: Add a new customer
-
-   DELETE /customers/{customer_id}: Mark a customer as deleted
-
-   ## Loans
-
-   GET /loans: Retrieve all loans
-
-   POST /loans: Add a new loan
-
-   PUT /loans/return/{loan_id}: Mark a loan as returned 
-
-   GET /loans/overdue: Retrieve all overdue loans
+- **GET /loans/non-overdue**: Retrieve all non-overdue loans
+- **POST /loans**: Add a new loan
+- **PUT /loans/return/{loan_id}**: Mark a loan as returned
+- **GET /loans/overdue**: Retrieve all overdue loans

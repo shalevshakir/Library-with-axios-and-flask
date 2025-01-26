@@ -2,13 +2,21 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from datetime import date, timedelta
+import logging
+from logger import log_info, log_warning, log_error
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///library.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+app.config['DEBUG']= False
 db = SQLAlchemy(app)
 CORS(app)
+
+app.logger.info("Flask application is starting")
+app.logger.warning("This is a warning")
+app.logger.error("An error occurred while processing")
+
 
 class Book(db.Model):
     __tablename__ = 'books'
@@ -19,6 +27,7 @@ class Book(db.Model):
     book_name = db.Column(db.Text, nullable=False)
     available = db.Column(db.Boolean, nullable=False, default=True)
     is_deleted = db.Column(db.Boolean, nullable=False, default=False)
+    loans = db.relationship('Loan', backref='book', lazy=True)
 
 class Customer(db.Model):
     __tablename__ = 'customers'
@@ -29,6 +38,7 @@ class Customer(db.Model):
     phone = db.Column(db.String, nullable=False)
     active = db.Column(db.Boolean, nullable=False, default=True)
     is_deleted = db.Column(db.Boolean, nullable=False, default=False)
+    
 
     loans = db.relationship('Loan', backref='customer', lazy=True)
 
@@ -40,6 +50,8 @@ class Loan(db.Model):
     loandate = db.Column(db.Date, nullable=False)
     returndate = db.Column(db.Date, nullable=True)
     book_returned = db.Column(db.Boolean, nullable=False, default=False)
+   
+    
 
 def defaultdata():
     if Book.query.count() == 0:
@@ -70,6 +82,7 @@ def defaultdata():
 
 # books crud
 
+# create a new book
 @app.route('/books', methods=['POST'])
 def add_book():
     data = request.get_json()
@@ -85,6 +98,8 @@ def add_book():
     db.session.commit()
     return jsonify({'message': 'Book added successfully'}), 201
 
+
+# retrieve all books but not deleted
 @app.route('/books', methods=['GET'])
 def get_books():
     books = Book.query.filter_by(is_deleted=False).all()
@@ -95,8 +110,21 @@ def get_books():
         'year_publised': book.year_publised,
         'book_name': book.book_name,
         'available': book.available
+   
     } for book in books])
+    
 
+# Retrieve available books
+@app.route('/books/available', methods=['GET'])
+def get_available_books():
+    books = Book.query.filter_by(available=True, is_deleted=False).all()
+    return jsonify([{
+        'book_ID': book.book_ID,
+        'book_name': book.book_name,
+        'author': book.author,
+        'type': book.type,
+        'year_publised': book.year_publised
+    } for book in books])
 
 # delete_book
 @app.route('/books/<int:book_id>', methods=['DELETE'])
@@ -105,8 +133,11 @@ def delete_book(book_id):
     book.is_deleted = True
     db.session.commit()
     return jsonify({'message': 'Book marked as deleted successfully'})
+# end of book crud
 
 # customers crud
+
+# Retrieve all customers
 @app.route('/customers', methods=['GET'])
 def get_customers():
     customers = Customer.query.filter_by(is_deleted=False).all()
@@ -117,6 +148,16 @@ def get_customers():
         'age': customer.age,
         'phone': customer.phone,
         'active': customer.active
+    } for customer in customers])
+
+# Retrieve active customers and not deleted
+@app.route('/customers/active', methods=['GET'])
+def get_active_customers():
+    customers = Customer.query.filter_by(active=True, is_deleted=False).all()
+    return jsonify([{
+        'id': customer.id,
+        'name': customer.name,
+        'phone': customer.phone
     } for customer in customers])
 
 # Create a new customer
@@ -140,37 +181,41 @@ def delete_customer(customer_id):
     customer.is_deleted = True
     db.session.commit()
     return jsonify({'message': 'Customer marked as deleted successfully'})
+# end of customers crud
+
 # loans crud
 
 # Retrieve all loans
-@app.route('/loans', methods=['GET'])
-def get_loans():
-    loans = Loan.query.all()
-    return jsonify([{
-        'loan_ID': loan.loan_ID,
-        'cust_id': loan.cust_id,
-        'book_id': loan.book_id,
-        'loandate': loan.loandate,
-        'returndate': loan.returndate,
-        'book_returned': loan.book_returned
-    } for loan in loans])
 
 # get overdueloans
 @app.route('/loans/overdue', methods=['GET'])
 def get_overdue_loans():
-    print("overdue loans")
     today = date.today()
     overdue_loans = Loan.query.filter(Loan.book_returned == False, Loan.returndate < today).all()
-    if not overdue_loans:
-        return jsonify({'message': 'No overdue loans'}), 200
     return jsonify([{
         'loan_ID': loan.loan_ID,
-        'cust_id': loan.cust_id,
-        'book_id': loan.book_id,
         'loandate': loan.loandate,
         'returndate': loan.returndate,
-        'book_returned': loan.book_returned
+        'book_returned': loan.book_returned,
+        'customer_name': loan.customer.name,  # Include customer name
+        'customer_phone': loan.customer.phone,  # Include customer phone
+        'book_name': loan.book.book_name  # Include book name
     } for loan in overdue_loans])
+
+@app.route('/loans/non-overdue', methods=['GET'])
+def get_non_overdue_loans():
+    today = date.today()
+    loans = Loan.query.filter(Loan.returndate >= today, Loan.book_returned == False).all()
+    return jsonify([{
+        'loan_ID': loan.loan_ID,
+        'loandate': loan.loandate,
+        'returndate': loan.returndate,
+        'book_returned': loan.book_returned,
+        'customer_name': loan.customer.name,
+        'customer_phone': loan.customer.phone,
+        'book_name': loan.book.book_name
+    } for loan in loans])
+
 
 # Retrieve all loans
 @app.route('/loans', methods=['POST'])
@@ -220,4 +265,5 @@ with app.app_context():
     defaultdata()
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    log_info("Flask application is starting")
+    app.run(debug=False ,use_reloader=False)
